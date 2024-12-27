@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "octopus-api"
+version = "0.1.0"
+description = ""
+authors = ["Steve Beaumont <steveb.hello@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+httpx = "^0.27.0"
+python-dotenv = "^1.0.1"
+sqlalchemy = "^2.0.29"
+pydantic = "2"
+pytz = "^2024.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+ignore = ["E402"]
