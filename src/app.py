@@ -1,7 +1,9 @@
-from datetime import datetime, timezone
+import os
+from datetime import datetime
+
+from dotenv import load_dotenv
 
 import db_client as DB
-from dotenv import load_dotenv
 
 load_dotenv()
 import logging
@@ -13,18 +15,19 @@ log = logging.getLogger()
 
 
 def main() -> None:
-    dt = datetime.fromisoformat("2024-04-24 01:00:00+01:00")
-    print(repr(dt))
-    dt_utc = dt.astimezone(timezone.utc)
-    print(repr(dt_utc))
+    """Main function to fetch electricity data and store it in the database."""
 
+    data_collection_start_date = os.environ.get("data_collection_start_date")
+    if data_collection_start_date is None:
+        raise ValueError(
+            "Environment variable 'data_collection_start_date' is not set."
+        )
+
+    log.info("Starting data collection")
     db_youngest = DB.get_most_recent_entry_date()
-
     if db_youngest is None:
-        db_youngest = datetime.fromisoformat("2024-04-17 21:30:00+01:00")
+        db_youngest = DB.localize(datetime.fromisoformat(data_collection_start_date))
 
-    print(repr(db_youngest))
-    # return
     data = get_electricity_consumption(db_youngest)
     if not data:
         log.info(f"No new API data since {db_youngest.isoformat()}")

@@ -51,7 +51,7 @@ def get_electricity_consumption(after: datetime | None = None) -> list[ElectRec]
         _from = page.results[-1].interval_end
         _to = page.results[0].interval_end
         log.info(
-            f"got electricity page. count={ len(page.results)} from {_from} to {_to}"
+            f"got electricity page. count={len(page.results)} from {_from} to {_to}"
         )
         return page
 
@@ -60,7 +60,7 @@ def get_electricity_consumption(after: datetime | None = None) -> list[ElectRec]
     while url:
         # get a page, results are in date descending order
         page = _get_consumption(url)
-        if after and page.results[-1].interval_end <= after:
+        if after and page.results and page.results[-1].interval_end <= after:
             # this page contains older entries we already have and must ignore
             results.extend([r for r in page.results if r.interval_end > after])
             break
