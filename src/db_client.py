@@ -39,9 +39,17 @@ def get_most_recent_entry_date() -> datetime | None:
             .limit(1)
             .one()
         )
-        return result[0]
+        if result:
+            return localize(result[0])
     except sa.exc.NoResultFound:
         pass
+
+
+def localize(dt: datetime) -> datetime:
+    """Convert a naive datetime to local timezone."""
+    if dt.tzinfo is None:
+        return local_tz.localize(dt)
+    return dt.astimezone(local_tz)
 
 
 def cleanup():
