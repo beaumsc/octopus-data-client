@@ -13,18 +13,22 @@ Base = declarative_base()
 local_tz = pytz.timezone("Europe/London")
 
 
-class Elect(Base):
-    """Electricity table. Timestamp is end of 30 minute period."""
+class Import(Base):
+    __tablename__ = "e_import"
 
-    __tablename__ = "electricity"
-
-    # sqlite3 does not natively support timezone, so we leave datetime as string
-    interval_end = sa.Column(sa.DateTime, primary_key=True)
+    # don't store interval_end, it is not necessary
+    interval_start = sa.Column(sa.DateTime, primary_key=True)
     consumption = sa.Column(sa.Float(precision=2))
 
-    def __init__(self, *args, interval_end: datetime, **kwargs):
-        interval_end = interval_end.astimezone(tz=timezone.utc)
-        super().__init__(*args, interval_end=interval_end, **kwargs)
+    # sqlite3 stores datetime as string. It converts to datetime on IO. It does not
+    # support timezone-aware datetimes, so we store and retrieve them as UTC
+    def __init__(self, *args, interval_start: datetime, **kwargs):
+        interval_start = interval_start.astimezone(tz=timezone.utc)
+        super().__init__(*args, interval_start=interval_start, **kwargs)
+
+
+# class Export(Base):
+#     __tablename__ = "e_import"
 
 
 engine = sa.create_engine("sqlite:///data/energy.db")
@@ -33,33 +37,26 @@ Session = sessionmaker(bind=engine)
 session = Session()
 
 
-def get_most_recent_entry_date() -> datetime | None:
-    """If recent value exists, it is returned with local timezone info."""
+def interval_start_from_most_recent_record(table_class: Import) -> datetime | None:
+    """If a most recent record is found, return it's period_end"""
     try:
         result = (
-            session.query(Elect.interval_end)
-            .order_by(sa.desc(Elect.interval_end))
+            session.query(table_class.interval_start)
+            .order_by(sa.desc(table_class.interval_start))
             .limit(1)
             .one()
         )
-        if result:
-            return localize(result[0])
+        return result[0]
     except sa.exc.NoResultFound:
         pass
 
 
-def localize(dt: datetime) -> datetime:
-    """Convert a naive datetime to local timezone."""
-    if dt.tzinfo is None:
-        return local_tz.localize(dt)
-    return dt.astimezone(local_tz)
-
-
 def add_to_db(data: list) -> None:
     """Add all records to the database."""
+    log.info("Adding records to DB")
     for r in data:
-        entry = Elect(
-            interval_end=r.interval_end,
+        entry = Import(
+            interval_start=r.interval_start,
             consumption=r.consumption,
         )
         session.add(entry)
@@ -70,6 +67,13 @@ def add_to_db(data: list) -> None:
         session.rollback()
     else:
         log.info(f"Added {len(data)} records to the database.")
+
+
+def localize(dt: datetime) -> datetime:
+    """Convert a naive datetime to local timezone."""
+    if dt.tzinfo is None:
+        return local_tz.localize(dt)
+    return dt.astimezone(local_tz)
 
 
 def cleanup():

@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
 
@@ -22,21 +22,32 @@ def main() -> None:
         )
 
     log.info("Starting data collection")
-    db_youngest = DB.get_most_recent_entry_date()
-    if db_youngest is not None:
-        log.info(f"Most recent entry in DB: {db_youngest}")
-    else:
-        log.info("No previous data found, using collection start date.")
+    start = DB.interval_start_from_most_recent_record(DB.Import)
+    if start is None:
         # If no previous data, use the start date from the environment variable
-        db_youngest = DB.localize(datetime.fromisoformat(data_collection_start_date))
+        start = DB.localize(datetime.fromisoformat(data_collection_start_date))
+        log.info(
+            "No previous data found, using collection start date: %sZ",
+            start.isoformat(),
+        )
+    else:
+        log.info("Previous data found having interval_start: %sZ", start.isoformat())
 
-    data = get_electricity_consumption(db_youngest)
+    # add 30 minutes to the start time to avoid duplicates
+    _from = start + timedelta(minutes=30)
+    log.info("Fetching data from API starting from: %sZ", _from.isoformat())
+
+    data = get_electricity_consumption(period_from=_from)
     if not data:
-        log.info(f"No new API data since {db_youngest}")
         raise SystemExit
 
-    log.info(f"Got from API. From {data[-1].interval_end} to {data[0].interval_end}")
-    log.info("Adding records to DB")
+    # data is in local timezone, convert to UTC
+    for rec in data:
+        rec.interval_start = DB.localize(rec.interval_start)
+        rec.interval_end = None  # No longer usedstored in DB
+
+    first, last = data[-1].interval_start, data[0].interval_start
+    log.info("Got from API. From %s to %s", first.isoformat(), last.isoformat())
 
     DB.add_to_db(data)
 
