@@ -37,13 +37,8 @@ def main() -> None:
 
     log.info(f"Got from API. From {data[-1].interval_end} to {data[0].interval_end}")
     log.info("Adding records to DB")
-    for r in data:
-        entry = DB.Elect(
-            interval_end=r.interval_end,
-            consumption=r.consumption,
-        )
-        DB.session.add(entry)
-    DB.session.commit()
+
+    DB.add_to_db(data)
 
 
 if __name__ == "__main__":

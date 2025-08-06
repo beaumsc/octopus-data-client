@@ -1,9 +1,12 @@
 import atexit
+import logging
 from datetime import datetime, timezone
 
 import pytz
 import sqlalchemy as sa
 from sqlalchemy.orm import declarative_base, sessionmaker
+
+log = logging.getLogger()
 
 Base = declarative_base()
 
@@ -50,6 +53,23 @@ def localize(dt: datetime) -> datetime:
     if dt.tzinfo is None:
         return local_tz.localize(dt)
     return dt.astimezone(local_tz)
+
+
+def add_to_db(data: list) -> None:
+    """Add all records to the database."""
+    for r in data:
+        entry = Elect(
+            interval_end=r.interval_end,
+            consumption=r.consumption,
+        )
+        session.add(entry)
+    try:
+        session.commit()
+    except sa.exc.IntegrityError:
+        log.warning("Duplicate entry detected, rolling back the transaction.")
+        session.rollback()
+    else:
+        log.info(f"Added {len(data)} records to the database.")
 
 
 def cleanup():
