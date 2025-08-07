@@ -1,6 +1,7 @@
 import atexit
 import logging
 from datetime import datetime, timezone
+from typing import Generator
 
 import pytz
 import sqlalchemy as sa
@@ -49,6 +50,23 @@ def interval_start_from_most_recent_record(table_class: Import) -> datetime | No
         return result[0]
     except sa.exc.NoResultFound:
         pass
+
+
+def get_all_in_reverse_order(from_dt: datetime) -> Generator[Import]:
+    """Get records that exist after date given (older/more recent) and return in reverse
+    order (eldest first)."""
+    try:
+        results = (
+            session.query(Import.interval_start)
+            .filter(Import.interval_start >= from_dt)
+            .order_by(sa.desc(Import.interval_start))
+            .all()
+        )
+    except sa.exc.NoResultFound:
+        log.warning("No records found in the database.")
+        return
+    for r in results:
+        yield r
 
 
 def add_to_db(data: list) -> None:
