@@ -22,29 +22,25 @@ def main() -> None:
         )
 
     log.info("Starting data collection")
-    start = DB.interval_start_from_most_recent_record(DB.Import)
-    if start is None:
+    last = DB.interval_start_from_most_recent_record(DB.Import)
+    if last is None:
         # If no previous data, use the start date from the environment variable
-        start = DB.localize(datetime.fromisoformat(data_collection_start_date))
+        start = datetime.fromisoformat(data_collection_start_date).astimezone(
+            DB.local_tz
+        )
         log.info(
-            "No previous data found, using collection start date: %sZ",
+            "No previous data found, using collection start date: %s",
             start.isoformat(),
         )
     else:
-        log.info("Previous data found having interval_start: %sZ", start.isoformat())
+        log.info("Previous data found up to interval_start: %s", last.isoformat())
+        # add 30 minutes to the start time to avoid duplicates
+        start = last + timedelta(minutes=30)
 
-    # add 30 minutes to the start time to avoid duplicates
-    _from = start + timedelta(minutes=30)
-    log.info("Fetching data from API starting from: %sZ", _from.isoformat())
-
-    data = get_electricity_consumption(period_from=_from)
+    log.info("Fetching data from API starting from: %s", start.isoformat())
+    data = get_electricity_consumption(period_from=start)
     if not data:
         raise SystemExit
-
-    # data is in local timezone, convert to UTC
-    for rec in data:
-        rec.interval_start = DB.localize(rec.interval_start)
-        rec.interval_end = None  # No longer usedstored in DB
 
     first, last = data[-1].interval_start, data[0].interval_start
     log.info("Got from API. From %s to %s", first.isoformat(), last.isoformat())

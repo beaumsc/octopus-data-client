@@ -14,18 +14,36 @@ Base = declarative_base()
 local_tz = pytz.timezone("Europe/London")
 
 
+class LocalToUTC(sa.types.TypeDecorator):
+    """Converts datetimes from local time to UTC (naive) for storage, and back to local on retrieval."""
+
+    impl = sa.DateTime
+
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        # Convert to UTC and drop tzinfo for storage
+        if value.tzinfo is None:
+            value = local_tz.localize(value)
+        value_utc = value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value_utc
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        # Assume DB value is UTC naive, convert to local
+        value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(local_tz)
+
+
 class Import(Base):
     __tablename__ = "e_import"
 
     # don't store interval_end, it is not necessary
-    interval_start = sa.Column(sa.DateTime, primary_key=True)
+    interval_start = sa.Column(LocalToUTC, primary_key=True)
     consumption = sa.Column(sa.Float(precision=2))
-
-    # sqlite3 stores datetime as string. It converts to datetime on IO. It does not
-    # support timezone-aware datetimes, so we store and retrieve them as UTC
-    def __init__(self, *args, interval_start: datetime, **kwargs):
-        interval_start = interval_start.astimezone(tz=timezone.utc)
-        super().__init__(*args, interval_start=interval_start, **kwargs)
 
 
 # class Export(Base):
