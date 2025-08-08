@@ -22,3 +22,10 @@ def to_utc(value: datetime) -> datetime:
 
 def to_utc_naive(value: datetime) -> datetime:
     return to_utc(value).replace(tzinfo=None)
+
+
+def to_local(value: datetime) -> datetime:
+    """Convert a UTC datetime to local timezone."""
+    if value.tzinfo is None:
+        raise ValueError("Datetime must be timezone-aware.")
+    return value.astimezone(local_tz)

@@ -1,47 +1,23 @@
 import atexit
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Generator
 
 import sqlalchemy as sa
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-from datetime_util import local_tz
+from datetime_util import to_utc_naive
 
 log = logging.getLogger()
 
 Base = declarative_base()
 
 
-class LocalToUTC(sa.types.TypeDecorator):
-    """Converts datetimes to UTC for storage if naive or local. Retrieves as UTC"""
-
-    impl = sa.DateTime
-
-    cache_ok = True
-
-    def process_bind_param(self, value, dialect):
-        if value is None:
-            return value
-        # Convert to UTC and drop tzinfo for storage
-        if value.tzinfo is None:
-            value = local_tz.localize(value)
-        value_utc = value.astimezone(timezone.utc).replace(tzinfo=None)
-        return value_utc
-
-    def process_result_value(self, value, dialect):
-        if value is None:
-            return value
-        # Assume DB value is UTC naive, convert to local
-        value = value.replace(tzinfo=timezone.utc)
-        return value.astimezone(local_tz)
-
-
 class Import(Base):
     __tablename__ = "e_import"
 
     # don't store interval_end, it is not necessary
-    interval_start = sa.Column(LocalToUTC, primary_key=True)
+    interval_start = sa.Column(sa.DateTime, primary_key=True)
     consumption = sa.Column(sa.Float(precision=2))
 
 
@@ -74,7 +50,7 @@ def get_all_in_reverse_order(from_dt: datetime) -> Generator[Import]:
     order (eldest first)."""
     try:
         results = (
-            session.query(Import.interval_start)
+            session.query(Import)
             .filter(Import.interval_start >= from_dt)
             .order_by(sa.desc(Import.interval_start))
             .all()
@@ -91,7 +67,7 @@ def add_to_db(data: list) -> None:
     log.info("Adding records to DB")
     for r in data:
         entry = Import(
-            interval_start=r.interval_start,
+            interval_start=to_utc_naive(r.interval_start),
             consumption=r.consumption,
         )
         session.add(entry)
