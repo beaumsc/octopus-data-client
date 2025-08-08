@@ -3,19 +3,18 @@ import logging
 from datetime import datetime, timezone
 from typing import Generator
 
-import pytz
 import sqlalchemy as sa
 from sqlalchemy.orm import declarative_base, sessionmaker
+
+from datetime_util import local_tz
 
 log = logging.getLogger()
 
 Base = declarative_base()
 
-local_tz = pytz.timezone("Europe/London")
-
 
 class LocalToUTC(sa.types.TypeDecorator):
-    """Converts datetimes from local time to UTC (naive) for storage, and back to local on retrieval."""
+    """Converts datetimes to UTC for storage if naive or local. Retrieves as UTC"""
 
     impl = sa.DateTime
 
@@ -103,13 +102,6 @@ def add_to_db(data: list) -> None:
         session.rollback()
     else:
         log.info(f"Added {len(data)} records to the database.")
-
-
-def localize(dt: datetime) -> datetime:
-    """Convert a naive datetime to local timezone."""
-    if dt.tzinfo is None:
-        return local_tz.localize(dt)
-    return dt.astimezone(local_tz)
 
 
 def cleanup():

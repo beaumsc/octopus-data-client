@@ -5,6 +5,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 import db_client as DB
+from datetime_util import to_utc
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "WARN").upper()
 logging.basicConfig(level=LOG_LEVEL)
@@ -15,15 +16,15 @@ load_dotenv()
 def main() -> None:
     """Main function to analyze electricity data and generate reports.
     We process in reverse order, starting from the most recent record."""
-    # Define the start date for analysis (UTC)
-    FROM_DT = datetime.fromisoformat("2025-08-05T00:00").replace(tzinfo=DB.local_tz)
-    TO_DT = datetime.fromisoformat("2025-08-04T23:30").replace(
-        tzinfo=DB.local_tz
-    )  # reverse order stop point!
+    # Define the start and stop date for analysis (inclusive)
+    # fetch start date. Controls last value in output as displayed reverse order
+    FROM_DT = to_utc(datetime.fromisoformat("2025-08-06T04:00+01:00"))
+    # process stop point (note process in reverse order)
+    TO_DT = None  # to_utc(datetime.fromisoformat("2025-08-06T03:00:00+01:00"))
 
     log.info("Starting data analysis")
     for r in DB.get_all_in_reverse_order(FROM_DT):
-        if r.interval_start < TO_DT:
+        if TO_DT and r.interval_start < TO_DT:
             break
         log.info(
             "Processing record with interval_start: %sZ", r.interval_start.isoformat()

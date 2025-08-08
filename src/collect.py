@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 import db_client as DB
+from datetime_util import to_utc, to_utc_naive
 from octopus_api import get_electricity_consumption
 
 logging.basicConfig(level=logging.INFO)
@@ -20,14 +21,15 @@ def main() -> None:
         raise ValueError(
             "Environment variable 'data_collection_start_date' is not set."
         )
+    data_collection_start_date = to_utc(
+        datetime.fromisoformat(data_collection_start_date)
+    )
 
     log.info("Starting data collection")
     last = DB.interval_start_from_most_recent_record(DB.Import)
     if last is None:
         # If no previous data, use the start date from the environment variable
-        start = datetime.fromisoformat(data_collection_start_date).astimezone(
-            DB.local_tz
-        )
+        start = data_collection_start_date
         log.info(
             "No previous data found, using collection start date: %s",
             start.isoformat(),
@@ -44,6 +46,10 @@ def main() -> None:
 
     first, last = data[-1].interval_start, data[0].interval_start
     log.info("Got from API. From %s to %s", first.isoformat(), last.isoformat())
+
+    # DB expects UTC naive datetimes
+    for record in data:
+        to_utc_naive(record.interval_start)
 
     DB.add_to_db(data)
 

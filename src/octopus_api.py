@@ -2,10 +2,11 @@ import logging
 import os
 from datetime import datetime
 
-import pytz
 from httpx import BasicAuth, request
 from pydantic import BaseModel, Field, model_validator
 from typing_extensions import Self
+
+from datetime_util import to_utc
 
 log = logging.getLogger()
 
@@ -37,7 +38,7 @@ def get_electricity_consumption(period_from: datetime) -> list[ElectRec]:
     """Electricity units is in kWh."""
 
     # The API expects period_from to have UTC timezone.
-    period_from = period_from.astimezone(pytz.utc)
+    period_from = to_utc(period_from)
 
     def _get_consumption(url: str) -> Electricity:
         AUTH = BasicAuth(username=os.environ["api_key"], password="")

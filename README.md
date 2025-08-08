@@ -17,10 +17,12 @@ The API is a mix of localtime and UTC depending on context.
 ### Considerations
 * Much of the processing needed is to be accounted per day.
 * Tariff time slots are based on local time. Fair to assume never nearby midnight.
-* Octopus billing is based on local time
-* If basing on whole day localtime usage there would be an extra day latency when DST applies
-* Calculation based on available UTC day cut-offs would suffice
-* It is generally good practice to work in UTC and convert to localtime on human interfaces
+* Octopus billing is based on local time.
+* If basing on whole day localtime usage there would be an extra day latency when DST applies.
+* Calculation based on available UTC day cut-offs would suffice.
+* It is generally good practice to work in UTC and convert to localtime on human interfaces.
 
 ### Handling within this code
-The ORM is configured to convert from and to local time zone on the interface to the database. Thus, the majority of this code is working in localtime.
+Datetimes specified in configuration must be ISO8601 with offset and will be converted to UTC.
+Datetimes from Octopus API are converted to UTC before saving to the database.
+Calculation of data in day units based on UTC.
