@@ -1,13 +1,13 @@
 import logging
 import os
 from collections import defaultdict
-from datetime import datetime, timezone
-from typing import Literal
+from datetime import datetime
 
 from dotenv import load_dotenv
 
 import db_client as DB
-from datetime_util import to_local, to_utc
+from datetime_util import to_utc
+from octopus_tariff import get_flux_import_tariff, import_prices
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(level=LOG_LEVEL)
@@ -56,28 +56,6 @@ def main() -> None:
             cost = usage * price / 100000  # convert Wh to kWh and in £ not pence
             print(f" {tariff} {usage}Wh £{cost:.2f}", end="")
         print()
-
-
-# define type for tariff names
-FluxTariffName = Literal["DAY", "FLUX", "PEAK"]
-# Import prices in pence per kWh
-import_prices = {
-    "DAY": 27.33,
-    "FLUX": 16.4,
-    "PEAK": 38.26,
-}
-
-
-def get_flux_import_tariff(interval_start: datetime) -> FluxTariffName:
-    # tariff is based on localtime, not UTC
-    if interval_start.tzinfo is not None:
-        raise ValueError("expecting naive datetime to be interpreted as UTC")
-    interval_start = to_local(interval_start.replace(tzinfo=timezone.utc))
-    if interval_start.hour >= 2 and interval_start.hour < 5:
-        return "FLUX"
-    if interval_start.hour >= 16 and interval_start.hour < 19:
-        return "PEAK"
-    return "DAY"
 
 
 if __name__ == "__main__":
