@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 import db_client as DB
 from datetime_util import to_utc, to_utc_naive
-from octopus_api import get_electricity_consumption
+from octopus_api import get_electricity_energy_kwh
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger()
@@ -15,7 +15,11 @@ load_dotenv()
 
 def main() -> None:
     """Main function to fetch electricity data and store it in the database."""
+    collect_meter_point(DB.Import, os.environ["import_mpan"], os.environ["import_sn"])
+    collect_meter_point(DB.Export, os.environ["export_mpan"], os.environ["export_sn"])
 
+
+def collect_meter_point(table_class: DB.Import | DB.Export, mpan: str, sn: str) -> None:
     data_collection_start_date = os.environ.get("data_collection_start_date")
     if data_collection_start_date is None:
         raise ValueError(
@@ -26,7 +30,7 @@ def main() -> None:
     )
 
     log.info("Starting data collection")
-    last = DB.interval_start_from_most_recent_record(DB.Import)
+    last = DB.interval_start_from_most_recent_record(table_class)
     if last is None:
         # If no previous data, use the start date from the environment variable
         start = data_collection_start_date
@@ -40,11 +44,7 @@ def main() -> None:
         start = last + timedelta(minutes=30)
 
     log.info("Fetching data from API starting from: %s", start.isoformat())
-    # mpan = os.environ["export_mpan"]
-    # sn = os.environ["export_sn"]
-    mpan = os.environ["import_mpan"]
-    sn = os.environ["import_sn"]
-    data = get_electricity_consumption(period_from=start, mpan=mpan, sn=sn)
+    data = get_electricity_energy_kwh(period_from=start, mpan=mpan, sn=sn)
     if not data:
         raise SystemExit
 
@@ -55,7 +55,7 @@ def main() -> None:
     for record in data:
         to_utc_naive(record.interval_start)
 
-    DB.add_to_db(data)
+    DB.add_to_db(table_class, data)
 
 
 if __name__ == "__main__":

@@ -16,11 +16,11 @@ BASE_URL = "https://api.octopus.energy"
 class ElectRec(BaseModel):
     """Electricity record from Octopus API for import and export meter points.
     Confusingly, the meter value is called 'consumption' despite being used for both
-    import and export."""
+    import and export. For our use we model it 'energy_kwh'."""
 
     interval_start: datetime
     interval_end: datetime
-    consumption: float = Field(description="Usage in kWh")
+    energy_kwh: float = Field(description="Usage in kWh", alias="consumption")
 
     @model_validator(mode="after")  # pyright: ignore
     def ensure_30min_interval(self) -> Self:
@@ -38,7 +38,7 @@ class Electricity(BaseModel):
     results: list[ElectRec]
 
 
-def get_electricity_consumption(
+def get_electricity_energy_kwh(
     period_from: datetime, mpan: str, sn: str
 ) -> list[ElectRec]:
     """Electricity units is in kWh."""
@@ -49,7 +49,7 @@ def get_electricity_consumption(
     # The API expects period_from to have UTC timezone.
     period_from = to_utc(period_from)
 
-    def _get_consumption(url: str) -> Electricity:
+    def _get_energy_kwh(url: str) -> Electricity:
         AUTH = BasicAuth(username=os.environ["api_key"], password="")
         response = request("GET", url, auth=AUTH)
         response.raise_for_status()
@@ -71,20 +71,9 @@ def get_electricity_consumption(
     url += f"?period_from={_period_from}"
     while url:
         # get a page, results are in date descending order
-        page = _get_consumption(url)
+        page = _get_energy_kwh(url)
         results.extend(page.results)
         url = page.next
     if not results:
         log.info(f"No API data available after {_period_from}")
     return results
-
-
-# def get_gas_consumption(after: datetime | None = None) -> list[ElectRec]:
-# GAS_MPRN = os.environ["gas_mprn"]
-# GAS_SN = os.environ["gas_sn"]
-# URL_GAS_CONSUMPTION = (
-#     f"{BASE_URL}/v1/gas-meter-points/{GAS_MPRN}/meters/{GAS_SN}/consumption/"
-# )
-
-
-# gas units is in cubic meters

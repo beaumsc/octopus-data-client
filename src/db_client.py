@@ -16,13 +16,17 @@ Base = declarative_base()
 class Import(Base):
     __tablename__ = "e_import"
 
-    # don't store interval_end, it is not necessary
+    # Meter period is 30 minutes from interval_start
     interval_start = sa.Column(sa.DateTime, primary_key=True)
-    consumption = sa.Column(sa.Float(precision=2))
+    energy_kwh = sa.Column(sa.Float(precision=2))
 
 
-# class Export(Base):
-#     __tablename__ = "e_import"
+class Export(Base):
+    __tablename__ = "e_export"
+
+    # Meter period is 30 minutes from interval_start
+    interval_start = sa.Column(sa.DateTime, primary_key=True)
+    energy_kwh = sa.Column(sa.Float(precision=2))
 
 
 engine = sa.create_engine("sqlite:///data/energy.db")
@@ -31,8 +35,10 @@ Session = sessionmaker(bind=engine)
 session = Session()
 
 
-def interval_start_from_most_recent_record(table_class: Import) -> datetime | None:
-    """If a most recent record is found, return it's period_end"""
+def interval_start_from_most_recent_record(
+    table_class: Import | Export,
+) -> datetime | None:
+    """If a most recent record is found, return it's interval_start, otherwise None."""
     try:
         result = (
             session.query(table_class.interval_start)
@@ -45,38 +51,40 @@ def interval_start_from_most_recent_record(table_class: Import) -> datetime | No
         pass
 
 
-def get_all_in_reverse_order(from_dt: datetime) -> Generator[Import]:
+def get_all_in_reverse_order(
+    table_class: Import | Export, from_dt: datetime
+) -> Generator[Import]:
     """Get records that exist after date given (older/more recent) and return in reverse
     order (eldest first)."""
     try:
         results = (
-            session.query(Import)
-            .filter(Import.interval_start >= from_dt)
-            .order_by(sa.desc(Import.interval_start))
+            session.query(table_class)
+            .filter(table_class.interval_start >= from_dt)
+            .order_by(sa.desc(table_class.interval_start))
             .all()
         )
     except sa.exc.NoResultFound:
-        log.warning("No records found in the database.")
+        log.warning("No records found in the table %s.", table_class.__tablename__)
         return
     for r in results:
         yield r
 
 
 # TODO be specific about the type of data being added
-def add_to_db(data: list) -> None:
-    """Insert or update records in the database."""
-    log.info("Adding or updating records in DB")
+def add_to_db(table_class: Import | Export, data: list) -> None:
+    """Insert or update records in the given table."""
+    log.info("Adding or updating records to DB.")
     for r in data:
         interval_start = to_utc_naive(r.interval_start)
         existing = (
-            session.query(Import).filter_by(interval_start=interval_start).first()
+            session.query(table_class).filter_by(interval_start=interval_start).first()
         )
         if existing:
-            existing.consumption = r.consumption
+            existing.energy_kwh = r.energy_kwh
         else:
-            entry = Import(
+            entry = table_class(
                 interval_start=interval_start,
-                consumption=r.consumption,
+                energy_kwh=r.energy_kwh,
             )
             session.add(entry)
     try:
@@ -85,7 +93,7 @@ def add_to_db(data: list) -> None:
         log.warning("Integrity error detected, rolling back the transaction.")
         session.rollback()
     else:
-        log.info(f"Processed {len(data)} records in the database.")
+        log.info("Added %s records to table %s.", len(data), table_class.__tablename__)
 
 
 def cleanup():
