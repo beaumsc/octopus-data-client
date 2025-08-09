@@ -14,7 +14,9 @@ BASE_URL = "https://api.octopus.energy"
 
 
 class ElectRec(BaseModel):
-    """Electricity consumption record from Octopus API."""
+    """Electricity record from Octopus API for import and export meter points.
+    Confusingly, the meter value is called 'consumption' despite being used for both
+    import and export."""
 
     interval_start: datetime
     interval_end: datetime
