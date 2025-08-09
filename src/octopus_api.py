@@ -36,8 +36,13 @@ class Electricity(BaseModel):
     results: list[ElectRec]
 
 
-def get_electricity_consumption(period_from: datetime) -> list[ElectRec]:
+def get_electricity_consumption(
+    period_from: datetime, mpan: str, sn: str
+) -> list[ElectRec]:
     """Electricity units is in kWh."""
+
+    if not isinstance(mpan, str) or not isinstance(sn, str):
+        raise ValueError("MPAN and SN must be strings.")
 
     # The API expects period_from to have UTC timezone.
     period_from = to_utc(period_from)
@@ -58,9 +63,7 @@ def get_electricity_consumption(period_from: datetime) -> list[ElectRec]:
         return page
 
     results: list[ElectRec] = []
-    ELECTRICITY_MPAN = os.environ["electricity_mpan"]
-    ELECTRICITY_SN = os.environ["electricity_sn"]
-    url = f"{BASE_URL}/v1/electricity-meter-points/{ELECTRICITY_MPAN}/meters/{ELECTRICITY_SN}/consumption/"
+    url = f"{BASE_URL}/v1/electricity-meter-points/{mpan}/meters/{sn}/consumption/"
     # API expects ISO 8601 format with 'Z' for UTC
     _period_from = f"{period_from.strftime('%Y-%m-%dT%H:%M:%S')}Z"
     url += f"?period_from={_period_from}"

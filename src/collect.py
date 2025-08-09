@@ -40,7 +40,11 @@ def main() -> None:
         start = last + timedelta(minutes=30)
 
     log.info("Fetching data from API starting from: %s", start.isoformat())
-    data = get_electricity_consumption(period_from=start)
+    # mpan = os.environ["export_mpan"]
+    # sn = os.environ["export_sn"]
+    mpan = os.environ["import_mpan"]
+    sn = os.environ["import_sn"]
+    data = get_electricity_consumption(period_from=start, mpan=mpan, sn=sn)
     if not data:
         raise SystemExit
 
