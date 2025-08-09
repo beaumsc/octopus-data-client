@@ -5,6 +5,9 @@ from datetime_util import to_local
 
 # define type for tariff names
 FluxTariffName = Literal["DAY", "FLUX", "PEAK"]
+
+meg_tariff = 0.15  # Minimum Export Guarantee Tariff (£)
+
 # Import prices in pence per kWh
 import_prices = {
     "DAY": 27.33,
@@ -12,8 +15,15 @@ import_prices = {
     "PEAK": 38.26,
 }
 
+# Export rates in pence per kWh
+export_rates = {
+    "DAY": 10.11,
+    "FLUX": 4.99,
+    "PEAK": 29.32,
+}
 
-def get_flux_import_tariff(interval_start: datetime) -> FluxTariffName:
+
+def tariff_name_from_time(interval_start: datetime) -> FluxTariffName:
     # tariff is based on localtime, not UTC
     if interval_start.tzinfo is not None:
         raise ValueError("expecting naive datetime to be interpreted as UTC")

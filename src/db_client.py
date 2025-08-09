@@ -51,16 +51,15 @@ def interval_start_from_most_recent_record(
         pass
 
 
-def get_all_in_reverse_order(
+def get_meter_data(
     table_class: Import | Export, from_dt: datetime
 ) -> Generator[Import]:
-    """Get records that exist after date given (older/more recent) and return in reverse
-    order (eldest first)."""
+    """Get records that exist after date given and return in date ascending order."""
     try:
         results = (
             session.query(table_class)
             .filter(table_class.interval_start >= from_dt)
-            .order_by(sa.desc(table_class.interval_start))
+            .order_by(sa.asc(table_class.interval_start))
             .all()
         )
     except sa.exc.NoResultFound:
