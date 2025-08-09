@@ -3,7 +3,7 @@
 Collects electricity usage and exports from Octopus API. Analysis of data to validate or aid the selection of the best tariff available.
 
 ## References
-[Octopus API details](https://developer.octopus.energy/docs/api/)
+[Octopus API details](https://developer.octopus.energy/rest/reference#tag/electricity-meter-points/operation/Get%20Electricity%20Meter%20Point)
 
 ## Date time handling
 

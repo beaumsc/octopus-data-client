@@ -14,9 +14,11 @@ BASE_URL = "https://api.octopus.energy"
 
 
 class ElectRec(BaseModel):
-    consumption: float = Field(description="Usage in kWh")
+    """Electricity consumption record from Octopus API."""
+
     interval_start: datetime
     interval_end: datetime
+    consumption: float = Field(description="Usage in kWh")
 
     @model_validator(mode="after")  # pyright: ignore
     def ensure_30min_interval(self) -> Self:

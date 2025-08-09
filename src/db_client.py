@@ -62,22 +62,30 @@ def get_all_in_reverse_order(from_dt: datetime) -> Generator[Import]:
         yield r
 
 
+# TODO be specific about the type of data being added
 def add_to_db(data: list) -> None:
-    """Add all records to the database."""
-    log.info("Adding records to DB")
+    """Insert or update records in the database."""
+    log.info("Adding or updating records in DB")
     for r in data:
-        entry = Import(
-            interval_start=to_utc_naive(r.interval_start),
-            consumption=r.consumption,
+        interval_start = to_utc_naive(r.interval_start)
+        existing = (
+            session.query(Import).filter_by(interval_start=interval_start).first()
         )
-        session.add(entry)
+        if existing:
+            existing.consumption = r.consumption
+        else:
+            entry = Import(
+                interval_start=interval_start,
+                consumption=r.consumption,
+            )
+            session.add(entry)
     try:
         session.commit()
     except sa.exc.IntegrityError:
-        log.warning("Duplicate entry detected, rolling back the transaction.")
+        log.warning("Integrity error detected, rolling back the transaction.")
         session.rollback()
     else:
-        log.info(f"Added {len(data)} records to the database.")
+        log.info(f"Processed {len(data)} records in the database.")
 
 
 def cleanup():
